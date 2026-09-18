@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Survival Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        #canvas3d {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        /* UI Overlay */
+        #ui-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            box-sizing: border-box;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .stats-panel {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            width: 250px;
+            pointer-events: auto;
+            color: white;
+        }
+        .stat-bar-container {
+            margin-bottom: 10px;
+        }
+        .stat-label {
+            font-size: 14px;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .stat-bar {
+            width: 100%;
+            height: 12px;
+            background: #333;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #555;
+        }
+        .stat-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.2s ease;
+        }
+        #hp-fill { background: #ff4757; }
+        #hunger-fill { background: #ffa502; }
+        #thirst-fill { background: #1e90ff; }
+        
+        .inventory-panel {
+            margin-top: 10px;
+            font-size: 14px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            padding-top: 10px;
+        }
+
+        /* Crosshair */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: white;
+        }
+        #crosshair::before { top: 4px; left: 0; width: 10px; height: 2px; }
+        #crosshair::after { top: 0; left: 4px; width: 2px; height: 10px; }
+
+        /* Interaction prompt */
+        #prompt {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            display: none;
+            text-align: center;
+            border: 1px solid #444;
+        }
+
+        /* Controls Instructions */
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            text-align: center;
+            pointer-events: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 500px;
+        }
+        #instructions h2 { margin: 0 0 10px 0; font-size: 18px; color: #2ed573; }
+        #instructions p { margin: 5px 0; font-size: 13px; color: #ccc; }
+        .btn-start {
+            background: #2ed573;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            margin-top: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .btn-start:hover { background: #26af5f; }
+
+        /* Game Over Screen */
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 10;
+        }
+        #game-over h1 { color: #ff4757; font-size: 48px; margin-bottom: 10px; }
+        #game-over p { font-size: 20px; margin-bottom: 20px; }
+    </style>
+    <!-- Подключаем Three.js через CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <canvas id="canvas3d"></canvas>
+
+    <div id="ui-container">
+        <div class="stats-panel">
+            <div class="stat-bar-container">
+                <div class="stat-label">❤️ Здоровье <span id="hp-val">100</span></div>
+                <div class="stat-bar"><div id="hp-fill" class="stat-fill"></div></div>
+            </div>
+            <div class="stat-bar-container">
+                <div class="stat-label">🍗 Сытость <span id="hunger-val">100</span></div>
+                <div class="stat-bar"><div id="hunger-fill" class="stat-fill"></div></div>
+            </div>
+            <div class="stat-bar-container">
+                <div class="stat-label">💧 Жажда <span id="thirst-val">100</span></div>
+                <div class="stat-bar"><div id="thirst-fill" class="stat-fill"></div></div>
+            </div>
+            <div class="inventory-panel">
+                🪵 Древесина: <span id="wood-count" style="font-weight:bold; color:#ffa502;">0</span><br>
+                🍏 Яблоки: <span id="food-count" style="font-weight:bold; color:#2ed573;">0</span>
+            </div>
+        </div>
+
+        <div id="instructions">
+            <h2>🌲 Симулятор Выживания 3D</h2>
+            <p>Управление: <b>WASD</b> — Ходить | <b>Мышь</b> — Обзор (Кликните по экрану)</p>
+            <p>Сбор ресурсов: Подойдите к дереву/яблоне и нажмите <b>E</b></p>
+            <p>Крафт/Выживание: Кушайте яблоки автоматически при голоде. Берегите силы!</p>
+            <button class="btn-start" id="start-btn">ИГРАТЬ</button>
+        </div>
+    </div>
+
+    <div id="crosshair"></div>
+    <div id="prompt">Нажмите [E], чтобы собрать ресурсы</div>
+
+    <div id="game-over">
+        <h1>Вы погибли!</h1>
+        <p>Лес оказался сильнее вас.</p>
+        <button class="btn-start" onclick="location.reload()">Начать заново</button>
+    </div>
+
+    <script>
+        // --- Настройки игры ---
+        let stats = { hp: 100, hunger: 100, thirst: 100, wood: 0, apples: 0 };
+        let gameOver = false;
+        let isLocked = false;
+
+        // Элементы UI
+        const hpFill = document.getElementById('hp-fill');
+        const hungerFill = document.getElementById('hunger-fill');
+        const thirstFill = document.getElementById('thirst-fill');
+        const hpVal = document.getElementById('hp-val');
+        const hungerVal = document.getElementById('hunger-val');
+        const thirstVal = document.getElementById('thirst-val');
+        const woodCount = document.getElementById('wood-count');
+        const foodCount = document.getElementById('food-count');
+        const promptEl = document.getElementById('prompt');
+        const instructions = document.getElementById('instructions');
+        const gameOverScreen = document.getElementById('game-over');
+        const startBtn = document.getElementById('start-btn');
+
+        // --- Инициализация 3D Сцены ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xa0c0f0); // Голубое небо
+        scene.fog = new THREE.FogExp2(0xa0c0f0, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas3d'), antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+
+        // Освещение
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xfffaed, 0.8);
+        sunLight.position.set(50, 100, 50);
+        sunLight.castShadow = true;
+        scene.add(sunLight);
+
+        // Земля
+        const groundGeo = new THREE.PlaneGeometry(200, 200);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x3b7a57, roughness: 0.9 }); // Зеленая трава
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Массивы объектов для взаимодействия
+        const interactableObjects = [];
+
+        // Генерация деревьев и ресурсов
+        function createTree(x, z, isAppleTree) {
+            const treeGroup = new THREE.Group();
+            treeGroup.position.set(x, 0, z);
+
+            // Ствол
+            const trunkGeo = new THREE.CylinderGeometry(0.4, 0.6, 5, 8);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = 2.5;
+            trunk.castShadow = true;
+            treeGroup.add(trunk);
+
+            // Листва
+            const leavesGeo = new THREE.DodecahedronGeometry(2.5, 1);
+            const leavesMat = new THREE.MeshStandardMaterial({ color: isAppleTree ? 0x2e8b57 : 0x1e5631, roughness: 0.6 });
+            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+            leaves.position.y = 5;
+            leaves.castShadow = true;
+            treeGroup.add(leaves);
+
+            // Если яблоня — добавим визуальные яблоки (красные сферы)
+            if (isAppleTree) {
+                for (let i = 0; i < 4; i++) {
+                    const appleGeo = new THREE.SphereGeometry(0.2, 8, 8);
+                    const appleMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+                    const apple = new THREE.Mesh(appleGeo, appleMat);
+                    apple.position.set(
+                        (Math.random() - 0.5) * 2,
+                        4 + Math.random() * 1.5,
+                        (Math.random() - 0.5) * 2
+                    );
+                    treeGroup.add(apple);
+                }
+            }
+
+            scene.add(treeGroup);
+
+            // Добавляем в список интерактивных
+            interactableObjects.push({
+                mesh: treeGroup,
+                type: isAppleTree ? 'apple_tree' : 'tree',
+                radius: 3,
+                collected: false
+            });
+        }
+
+        // Спавним объекты по карте
+        for (let i = 0; i < 60; i++) {
+            let x = (Math.random() - 0.5) * 160;
+            let z = (Math.random() - 0.5) * 160;
+            // Исключаем спавн прямо на игроке в центре
+            if (Math.sqrt(x*x + z*z) > 8) {
+                createTree(x, z, Math.random() > 0.6);
+            }
+        }
+
+        // --- Логика Игрока и Управление ---
+        camera.position.set(0, 2, 0); // Высота глаз игрока
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+
+        // Блокировка мыши (Pointer Lock)
+        const canvas = document.getElementById('canvas3d');
+        startBtn.addEventListener('click', () => {
+            canvas.requestPointerLock();
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === canvas) {
+                instructions.style.display = 'none';
+                isLocked = true;
+            } else {
+                if(!gameOver) instructions.style.display = 'block';
+                isLocked = false;
+            }
+        });
+
+        // Движение мыши
+        let pitch = 0, yaw = 0;
+        document.addEventListener('mousemove', (e) => {
+            if (!isLocked || gameOver) return;
+
+            yaw -= e.movementX * 0.002;
+            pitch -= e.movementY * 0.002;
+
+            // Ограничение взгляда вверх/вниз
+            pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
+
+            camera.rotation.order = "YXZ";
+            camera.rotation.set(pitch, yaw, 0);
+        });
+
+        // Клавиатура
+        document.addEventListener('keydown', (e) => {
+            if (!isLocked || gameOver) return;
+            switch (e.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyD': moveRight = true; break;
+                case 'KeyE': interactWithObject(); break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch (e.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyD': moveRight = false; break;
+            }
+        });
+
+        // Функция взаимодействия
+        let activeObject = null;
+
+        function checkInteractions() {
+            activeObject = null;
+            promptEl.style.display = 'none';
+
+            if (gameOver) return;
+
+            for (let obj of interactableObjects) {
+                if (obj.collected) continue;
+
+                let dist = camera.position.distanceTo(obj.mesh.position);
+                if (dist < obj.radius) {
+                    activeObject = obj;
+                    if (obj.type === 'tree') {
+                        promptEl.innerText = "Нажмите [E], чтобы срубить дерево (+🪵)";
+                    } else if (obj.type === 'apple_tree') {
+                        promptEl.innerText = "Нажмите [E], чтобы собрать яблоки и дерево (+🍏 +🪵)";
+                    }
+                    promptEl.style.display = 'block';
+                    break;
+                }
+            }
+        }
+
+        function interactWithObject() {
+            if (activeObject) {
+                if (activeObject.type === 'tree') {
+                    stats.wood += Math.floor(Math.random() * 3) + 2;
+                } else if (activeObject.type === 'apple_tree') {
+                    stats.wood += Math.floor(Math.random() * 2) + 1;
+                    stats.apples += Math.floor(Math.random() * 3) + 2;
+                }
+                
+                // Эффект сбора: опускаем дерево под землю
+                activeObject.collected = true;
+                let t = activeObject.mesh;
+                let interval = setInterval(() => {
+                    t.position.y -= 0.2;
+                    if (t.position.y < -6) {
+                        clearInterval(interval);
+                        scene.remove(t);
+                    }
+                }, 30);
+
+                updateUI();
+                promptEl.style.display = 'none';
+                activeObject = null;
+            }
+        }
+
+        // --- Жизненные показатели выживания ---
+        setInterval(() => {
+            if (!isLocked || gameOver) return;
+
+            // Потребление ресурсов
+            stats.hunger -= 1.5;
+            stats.thirst -= 2.5;
+
+            // Автоматическое поедание яблок при голоде
+            if (stats.hunger < 70 && stats.apples > 0) {
+                stats.apples--;
+                stats.hunger = Math.min(100, stats.hunger + 15);
+                stats.thirst = Math.min(100, stats.thirst + 5);
+            }
+
+            // Урон от голода и жажды
+            if (stats.hunger <= 0 || stats.thirst <= 0) {
+                stats.hp -= 5;
+                stats.hunger = Math.max(0, stats.hunger);
+                stats.thirst = Math.max(0, stats.thirst);
+            }
+
+            if (stats.hp <= 0) {
+                stats.hp = 0;
+                triggerGameOver();
+            }
+
+            updateUI();
+        }, 2000);
+
+        function updateUI() {
+            hpFill.style.width = stats.hp + '%';
+            hungerFill.style.width = stats.hunger + '%';
+            thirstFill.style.width = stats.thirst + '%';
+
+            hpVal.innerText = Math.round(stats.hp);
+            hungerVal.innerText = Math.round(stats.hunger);
+            thirstVal.innerText = Math.round(stats.thirst);
+
+            woodCount.innerText = stats.wood;
+            foodCount.innerText = stats.apples;
+        }
+
+        function triggerGameOver() {
+            gameOver = true;
+            document.exitPointerLock();
+            gameOverScreen.style.display = 'flex';
+        }
+
+        // --- Игровой Цикл ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isLocked && !gameOver) {
+                const delta = clock.getDelta();
+
+                // Физика затухания скорости (трение)
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize();
+
+                // Движение относительно взгляда камеры
+                const camYaw = yaw;
+                if (moveForward || moveBackward) {
+                    velocity.z -= direction.z * 40.0 * delta;
+                }
+                if (moveLeft || moveRight) {
+                    velocity.x -= direction.x * 40.0 * delta;
+                }
+
+                // Смещаем камеру (игрока) по осям X и Z
+                camera.position.x += (velocity.x * Math.cos(camYaw) - velocity.z * Math.sin(camYaw)) * delta;
+                camera.position.z += (velocity.x * Math.sin(camYaw) + velocity.z * Math.cos(camYaw)) * delta;
+
+                // Границы карты
+                camera.position.x = Math.max(-95, Math.min(95, camera.position.x));
+                camera.position.z = Math.max(-95, Math.min(95, camera.position.z));
+
+                checkInteractions();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Изменение размеров окна
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Запуск
+        updateUI();
+        animate();
+    </script>
+</body>
+</html>
