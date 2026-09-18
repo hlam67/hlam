@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Медиа Плеер</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background-color: #1e293b;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 800px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #38bdf8;
+        }
+        .media-box {
+            background-color: #0f172a;
+            border: 2px dashed #334155;
+            border-radius: 12px;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 25px;
+            position: relative;
+        }
+        .media-box img, .media-box video {
+            max-width: 100%;
+            max-height: 70vh;
+            object-fit: contain;
+            display: block;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        .file-input-label {
+            display: inline-block;
+            background-color: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .file-input-label:hover {
+            background-color: #1d4ed8;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .hint {
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Локальный Медиа Плеер</h1>
+    
+    <div class="media-box" id="mediaContainer">
+        <!-- По умолчанию загружается файл 1 из той же папки -->
+        <img src="1.jpeg" id="defaultImage" alt="Медиафайл '1'" onerror="tryNextFormat(this)">
+    </div>
+
+    <div class="controls">
+        <label class="file-input-label">
+            Выбрать другой файл
+            <input type="file" id="filePicker" accept="image/*,video/*">
+        </label>
+        <p class="hint">Поддерживаются форматы: JPEG, PNG, GIF, MP4, WebM. Автоматически ищет файл <b>1.jpeg</b> (или 1.jpg, 1.png, 1.gif) при открытии.</p>
+    </div>
+</div>
+
+<script>
+    const mediaContainer = document.getElementById('mediaContainer');
+    const filePicker = document.getElementById('filePicker');
+    
+    // Список расширений для автоподбора стартового файла '1'
+    const formats = ['jpeg', 'jpg', 'png', 'gif'];
+    let currentFormatIndex = 0;
+
+    function tryNextFormat(imgElement) {
+        currentFormatIndex++;
+        if (currentFormatIndex < formats.length) {
+            imgElement.src = '1.' + formats[currentFormatIndex];
+        } else {
+            // Если ни один локальный файл не найден, выводим заглушку или ждем загрузки пользователя
+            mediaContainer.innerHTML = '<p style="color: #94a3b8; padding: 20px;">Файл "1" с расширениями JPEG/PNG/GIF не найден в папке.<br>Пожалуйста, выберите файл вручную ниже.</p>';
+        }
+    }
+
+    // Обработчик ручного выбора файла
+    filePicker.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const fileURL = URL.createObjectURL(file);
+        mediaContainer.innerHTML = ''; // Очищаем контейнер
+
+        if (file.type.startsWith('video/')) {
+            const video = document.createElement('video');
+            video.src = fileURL;
+            video.controls = true;
+            video.autoplay = true;
+            video.loop = true;
+            mediaContainer.appendChild(video);
+        } else if (file.type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.src = fileURL;
+            img.alt = file.name;
+            mediaContainer.appendChild(img);
+        }
+    });
+</script>
+
+</body>
+</html>
