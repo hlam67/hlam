@@ -1,146 +1,120 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Медиа Плеер</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            background-color: #1e293b;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
-            text-align: center;
-            max-width: 800px;
-            width: 100%;
-        }
-        h1 {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            color: #38bdf8;
-        }
-        .media-box {
-            background-color: #0f172a;
-            border: 2px dashed #334155;
-            border-radius: 12px;
-            min-height: 300px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            margin-bottom: 25px;
-            position: relative;
-        }
-        .media-box img, .media-box video {
-            max-width: 100%;
-            max-height: 70vh;
-            object-fit: contain;
-            display: block;
-        }
-        .controls {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            align-items: center;
-        }
-        .file-input-label {
-            display: inline-block;
-            background-color: #2563eb;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background-color 0.2s;
-        }
-        .file-input-label:hover {
-            background-color: #1d4ed8;
-        }
-        input[type="file"] {
-            display: none;
-        }
-        .hint {
-            font-size: 0.875rem;
-            color: #94a3b8;
-        }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <h1>Локальный Медиа Плеер</h1>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0f0f11; font-family: sans-serif; color: #fff; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 30px; color: #eee; }
     
-    <div class="media-box" id="mediaContainer">
-        <!-- По умолчанию загружается файл 1 из той же папки -->
-        <img src="1.jpeg" id="defaultImage" alt="Медиафайл '1'" onerror="tryNextFormat(this)">
-    </div>
+    /* Сетка галереи */
+    .gallery-grid { 
+        display: grid; 
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
+        gap: 15px; 
+        max-width: 1200px; 
+        margin: 0 auto; 
+    }
+    
+    /* Карточки */
+    .gallery-item { 
+        position: relative; 
+        background: #1a1a1e; 
+        border-radius: 8px; 
+        overflow: hidden; 
+        aspect-ratio: 1/1; 
+        cursor: pointer; 
+    }
+    .gallery-item img, .gallery-item video { 
+        width: 100%; 
+        height: 100%; 
+        object-fit: cover; 
+    }
+    .item-num {
+        position: absolute; top: 10px; left: 10px; 
+        background: rgba(0,0,0,0.6); padding: 3px 8px; 
+        border-radius: 4px; font-size: 12px; font-weight: bold;
+    }
 
-    <div class="controls">
-        <label class="file-input-label">
-            Выбрать другой файл
-            <input type="file" id="filePicker" accept="image/*,video/*">
-        </label>
-        <p class="hint">Поддерживаются форматы: JPEG, PNG, GIF, MP4, WebM. Автоматически ищет файл <b>1.jpeg</b> (или 1.jpg, 1.png, 1.gif) при открытии.</p>
+    /* Окно просмотра на весь экран */
+    .lightbox { 
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.9); display: none; 
+        justify-content: center; align-items: center; z-index: 9999; 
+    }
+    .lightbox.active { display: flex; }
+    .lightbox-content { max-width: 90%; max-height: 90%; position: relative; }
+    .lightbox-content img, .lightbox-content video { 
+        max-width: 100%; max-height: 85vh; border-radius: 4px; 
+    }
+    .close-btn { 
+        position: absolute; top: -40px; right: 0; 
+        background: none; border: none; color: #fff; 
+        font-size: 35px; cursor: pointer; 
+    }
+</style>
+<h1>Моя Галерея</h1>
+
+<div class="gallery-grid" id="gallery"></div>
+
+<div class="lightbox" id="lightbox">
+    <div class="lightbox-content">
+        <button class="close-btn" id="closeBtn">&times;</button>
+        <div id="lightboxMedia"></div>
     </div>
 </div>
 
 <script>
-    const mediaContainer = document.getElementById('mediaContainer');
-    const filePicker = document.getElementById('filePicker');
-    
-    // Список расширений для автоподбора стартового файла '1'
-    const formats = ['jpeg', 'jpg', 'png', 'gif'];
-    let currentFormatIndex = 0;
+    // НАСТРОЙКА: Просто перечислите ваши файлы по порядку с их расширениями!
+    // Например: ['1.jpg', '2.mp4', '3.gif', '4.png', '5.jpeg']
+    const myFiles = ['1.jpg', '2.mp4', '3.gif', '4.png']; 
 
-    function tryNextFormat(imgElement) {
-        currentFormatIndex++;
-        if (currentFormatIndex < formats.length) {
-            imgElement.src = '1.' + formats[currentFormatIndex];
-        } else {
-            // Если ни один локальный файл не найден, выводим заглушку или ждем загрузки пользователя
-            mediaContainer.innerHTML = '<p style="color: #94a3b8; padding: 20px;">Файл "1" с расширениями JPEG/PNG/GIF не найден в папке.<br>Пожалуйста, выберите файл вручную ниже.</p>';
-        }
-    }
+    const gallery = document.getElementById('gallery');
+    const lightbox = document.getElementById('lightbox');
+    const lightboxMedia = document.getElementById('lightboxMedia');
+    const closeBtn = document.getElementById('closeBtn');
 
-    // Обработчик ручного выбора файла
-    filePicker.addEventListener('change', function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
+    // Быстро создаем карточки на экране без тяжелых запросов
+    myFiles.forEach((fileName, index) => {
+        const item = document.createElement('div');
+        item.className = 'gallery-item';
+        
+        // Номер файла
+        const num = document.createElement('div');
+        num.className = 'item-num';
+        num.innerText = index + 1;
+        item.appendChild(num);
 
-        const fileURL = URL.createObjectURL(file);
-        mediaContainer.innerHTML = ''; // Очищаем контейнер
+        const isVideo = fileName.endsWith('.mp4') || fileName.endsWith('.webm');
 
-        if (file.type.startsWith('video/')) {
+        if (isVideo) {
             const video = document.createElement('video');
-            video.src = fileURL;
-            video.controls = true;
-            video.autoplay = true;
+            video.src = fileName;
+            video.muted = true;
             video.loop = true;
-            mediaContainer.appendChild(video);
-        } else if (file.type.startsWith('image/')) {
+            video.playsInline = true;
+            // Включаем видео только при наведении мышки
+            item.addEventListener('mouseenter', () => video.play().catch(()=>{}));
+            item.addEventListener('mouseleave', () => { video.pause(); video.currentTime = 0; });
+            item.appendChild(video);
+        } else {
             const img = document.createElement('img');
-            img.src = fileURL;
-            img.alt = file.name;
-            mediaContainer.appendChild(img);
+            img.src = fileName;
+            img.loading = 'lazy';
+            item.appendChild(img);
         }
-    });
-</script>
 
-</body>
-</html>
+        // Клик открывает на весь экран
+        item.addEventListener('click', () => {
+            lightboxMedia.innerHTML = '';
+            if (isVideo) {
+                lightboxMedia.innerHTML = `<video src="${fileName}" controls autoplay style="max-width:100%"></video>`;
+            } else {
+                lightboxMedia.innerHTML = `<img src="${fileName}">`;
+            }
+            lightbox.classList.add('active');
+        });
+
+        gallery.appendChild(item);
+    });
+
+    // Закрытие окна
+    closeBtn.addEventListener('click', () => { lightbox.classList.remove('active'); lightboxMedia.innerHTML = ''; });
+    lightbox.addEventListener('click', (e) => { if(e.target === lightbox) { lightbox.classList.remove('active'); lightboxMedia.innerHTML = ''; } });
+</script>
