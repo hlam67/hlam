@@ -61,60 +61,109 @@
 </div>
 
 <script>
-    // НАСТРОЙКА: Просто перечислите ваши файлы по порядку с их расширениями!
-    // Например: ['1.jpg', '2.mp4', '3.gif', '4.png', '5.jpeg']
-    const myFiles = ['1.jpg', '2.mp4', '3.gif', '4.png']; 
+    // НАСТРОЙКА: Просто укажите, сколько ВСЕГО файлов (примерно) лежит в папке
+    const totalFilesCount = 30; 
 
+    // Список форматов, которые скрипт проверит для каждого номера
+    const formats = ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.webm', '.JPG', '.JPEG', '.PNG', '.GIF'];
+    
     const gallery = document.getElementById('gallery');
     const lightbox = document.getElementById('lightbox');
     const lightboxMedia = document.getElementById('lightboxMedia');
     const closeBtn = document.getElementById('closeBtn');
 
-    // Быстро создаем карточки на экране без тяжелых запросов
-    myFiles.forEach((fileName, index) => {
+    // Безопасная функция проверки одного файла
+    function testAndRender(num) {
+        let formatIndex = 0;
+
+        function tryNextFormat() {
+            if (formatIndex >= formats.length) return; // Если ни один формат не подошел, пропускаем номер
+            
+            const currentFormat = formats[formatIndex];
+            const fileUrl = num + currentFormat;
+            
+            const img = new Image();
+            
+            // Если это картинка/гифка и она успешно нашлась на хостинге
+            img.onload = function() {
+                createCard(num, fileUrl, false);
+            };
+            
+            // Если картинка не нашлась, проверяем, может это видео?
+            img.onerror = function() {
+                if (currentFormat === '.mp4' || currentFormat === '.webm') {
+                    const video = document.createElement('video');
+                    video.src = fileUrl;
+                    
+                    video.onloadeddata = function() {
+                        createCard(num, fileUrl, true);
+                    };
+                    
+                    video.onerror = function() {
+                        formatIndex++;
+                        tryNextFormat();
+                    };
+                } else {
+                    formatIndex++;
+                    tryNextFormat();
+                }
+            };
+            
+            img.src = fileUrl;
+        }
+        
+        tryNextFormat();
+    }
+
+    // Функция создания карточки на экране
+    function createCard(num, fileUrl, isVideo) {
         const item = document.createElement('div');
         item.className = 'gallery-item';
         
-        // Номер файла
-        const num = document.createElement('div');
-        num.className = 'item-num';
-        num.innerText = index + 1;
-        item.appendChild(num);
-
-        const isVideo = fileName.endsWith('.mp4') || fileName.endsWith('.webm');
+        const numBadge = document.createElement('div');
+        numBadge.className = 'item-num';
+        numBadge.innerText = num;
+        item.appendChild(numBadge);
 
         if (isVideo) {
             const video = document.createElement('video');
-            video.src = fileName;
+            video.src = fileUrl;
             video.muted = true;
             video.loop = true;
             video.playsInline = true;
-            // Включаем видео только при наведении мышки
             item.addEventListener('mouseenter', () => video.play().catch(()=>{}));
             item.addEventListener('mouseleave', () => { video.pause(); video.currentTime = 0; });
             item.appendChild(video);
         } else {
             const img = document.createElement('img');
-            img.src = fileName;
+            img.src = fileUrl;
             img.loading = 'lazy';
             item.appendChild(img);
         }
 
-        // Клик открывает на весь экран
         item.addEventListener('click', () => {
             lightboxMedia.innerHTML = '';
             if (isVideo) {
-                lightboxMedia.innerHTML = `<video src="${fileName}" controls autoplay style="max-width:100%"></video>`;
+                lightboxMedia.innerHTML = `<video src="${fileUrl}" controls autoplay style="max-width:100%"></video>`;
             } else {
-                lightboxMedia.innerHTML = `<img src="${fileName}">`;
+                lightboxMedia.innerHTML = `<img src="${fileUrl}">`;
             }
             lightbox.classList.add('active');
         });
 
+        // Добавляем в галерею и сразу сортируем карточки по порядку номеров
         gallery.appendChild(item);
-    });
+        Array.from(gallery.children)
+            .sort((a, b) => parseInt(a.querySelector('.item-num').innerText) - parseInt(b.querySelector('.item-num').innerText))
+            .forEach(node => gallery.appendChild(node));
+    }
 
-    // Закрытие окна
+    // Запускаем поочередную проверку всех номеров
+    for (let i = 1; i <= totalFilesCount; i++) {
+        testAndRender(i);
+    }
+
+    // Закрытие окна просмотра
     closeBtn.addEventListener('click', () => { lightbox.classList.remove('active'); lightboxMedia.innerHTML = ''; });
     lightbox.addEventListener('click', (e) => { if(e.target === lightbox) { lightbox.classList.remove('active'); lightboxMedia.innerHTML = ''; } });
 </script>
