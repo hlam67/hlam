@@ -4,20 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Survival Game</title>
-    <!-- Подключаем стили -->
+    
+    <!-- 1. Подключаем файл внешних стилей style.css -->
     <link rel="stylesheet" href="style.css">
-    <!-- Подключаем 3D-библиотеку Three.js через CDN -->
+    
+    <!-- 2. Загружаем библиотеку Three.js из интернета -->
     <script src="https://cloudflare.com"></script>
 </head>
 <body>
 
-    <!-- Контейнер для 3D графики -->
+    <!-- Контейнер для отрисовки 3D графики движком -->
     <div id="canvas-container"></div>
     
-    <!-- Прицел по центру -->
+    <!-- Прицел в центре экрана -->
     <div id="crosshair"></div>
 
-    <!-- Интерфейс выживания (UI) -->
+    <!-- Показатели выживания (UI) -->
     <div id="ui">
         <div>Здоровье:</div>
         <div class="stat-bar"><div id="hp-fill" class="stat-fill"></div></div>
@@ -33,10 +35,10 @@
         </div>
     </div>
 
-    <!-- Всплывающая подсказка для действий -->
+    <!-- Подсказка взаимодействия с деревьями -->
     <div id="interaction-prompt">Нажмите [E], чтобы собрать ресурсы</div>
 
-    <!-- Стартовый экран (блокировщик мыши) -->
+    <!-- Главный стартовый экран (фиксация мыши) -->
     <div id="blocker">
         <div id="instructions">
             <h2>3D ВЫЖИВАНИЕ В ЛЕСУ</h2>
@@ -48,13 +50,13 @@
         </div>
     </div>
 
-    <!-- Экран смерти -->
+    <!-- Экран проигрыша -->
     <div id="game-over">
         <h1>Вы погибли в лесу</h1>
         <button id="restart-btn" onclick="location.reload()">Начать заново</button>
     </div>
 
-    <!-- Подключаем игровой скрипт -->
+    <!-- 3. Подключаем основной код игры game.js в самом конце (после загрузки интерфейса) -->
     <script src="game.js"></script>
 </body>
 </html>
