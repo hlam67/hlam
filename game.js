@@ -6,51 +6,33 @@ const MAP_WIDTH = 16;
 const MAP_HEIGHT = 16;
 const TILE_SIZE = 64;
 
-// Генерация карты кодом без использования текстовых массивов
+// Сверхпростая карта: только забор по периметру, внутри абсолютно пусто
 let map = [];
-function generateSurvivalMap() {
-    // 1. Создаем пустую карту, заполненную нулями
-    for (let y = 0; y < MAP_HEIGHT; y++) {
-        map[y] = [];
-        for (let x = 0; x < MAP_WIDTH; x++) {
+for (let y = 0; y < MAP_HEIGHT; y++) {
+    map[y] = [];
+    for (let x = 0; x < MAP_WIDTH; x++) {
+        // Если это край карты — ставим забор (1), иначе — пустая земля (0)
+        if (y === 0 || y === MAP_HEIGHT - 1 || x === 0 || x === MAP_WIDTH - 1) {
+            map[y][x] = 1;
+        } else {
             map[y][x] = 0;
         }
     }
-
-    // 2. Строим стены (1) по периметру карты
-    for (let i = 0; i < MAP_WIDTH; i++) {
-        map[0][i] = 1;                  // Верхняя граница
-        map[MAP_HEIGHT - 1][i] = 1;     // Нижняя граница
-        map[i][0] = 1;                  // Левая граница
-        map[i][MAP_WIDTH - 1] = 1;      // Правая граница
-    }
-
-    // 3. Размещаем озера (3) вручную по координатам [y][x]
-    map[4][4] = 3; map[4][5] = 3;
-    map[5][4] = 3; map[5][5] = 3;
-    
-    map[11][11] = 3; map[11][12] = 3;
-    map[12][11] = 3; map[12][12] = 3;
-
-    // 4. Размещаем кусты ягод (2)
-    map[2][8] = 2;  map[2][9] = 2;
-    map[8][2] = 2;  map[9][2] = 2;
-    map[6][13] = 2; map[7][13] = 2;
-    map[13][6] = 2; map[13][7] = 2;
-    
-    // 5. Добавляем внутренние деревья/скалы для создания лабиринта
-    map[4][8] = 1;  map[5][8] = 1;  map[6][8] = 1;
-    map[10][7] = 1; map[10][8] = 1; map[10][9] = 1;
 }
-generateSurvivalMap();
+
+// Вручную точечно создаем пару зон для ресурсов, чтобы было что собирать
+map[5][5] = 3;  // Небольшое озеро с водой
+map[5][6] = 3;  
+map[10][10] = 2; // Куст ягод
+map[10][11] = 2;
 
 // Игрок
 const player = {
-    x: 2.5 * TILE_SIZE,
-    y: 2.5 * TILE_SIZE,
+    x: 4 * TILE_SIZE, // Ставим игрока подальше от стен в центр поляны
+    y: 4 * TILE_SIZE,
     angle: 0,
     fov: Math.PI / 3, // 60 градусов
-    speed: 3,
+    speed: 4,         // Чуть увеличили скорость бега по пустой карте
     rotSpeed: 0.05,
     // Параметры выживания
     hp: 100,
@@ -62,32 +44,30 @@ const player = {
     ticks: 0
 };
 
-// Отслеживание клавиатуры
+// Отслеживание клавиш клавиатуры
 const keys = {};
 window.addEventListener("keydown", e => keys[e.code] = true);
 window.addEventListener("keyup", e => keys[e.code] = false);
 
-// Цвета объектов
+// Цвета стен забора и ресурсов
 const colors = {
-    1: { top: "#2e5c1e", side: "#1e3d13" }, // Лес/Стена
-    2: { top: "#9c27b0", side: "#7b1fa2" }, // Кусты ягод
-    3: { top: "#2196f3", side: "#1976d2" }  // Вода
+    1: { top: "#2e5c1e", side: "#1e3d13" }, // Забор (Зеленый лес)
+    2: { top: "#9c27b0", side: "#7b1fa2" }, // Кусты ягод (Фиолетовые)
+    3: { top: "#2196f3", side: "#1976d2" }  // Вода (Синяя)
 };
 
-// Безопасное чтение ячеек карты с защитой от ошибок выхода за пределы
+// Железобетонная функция проверки карты, которая никогда не вызовет ошибку
 function getMapCell(x, y) {
-    if (y >= 0 && y < MAP_HEIGHT && x >= 0 && x < MAP_WIDTH) {
-        if (map[y] !== undefined) {
-            return map[y][x] || 0;
-        }
+    if (map[y] !== undefined && map[y][x] !== undefined) {
+        return map[y][x];
     }
-    return 1;
+    return 1; // Если игрок каким-то чудом вылетел за карту — вокруг стена
 }
 
 function update() {
     if (player.hp <= 0) return;
 
-    // Управление передвижением
+    // Управление передвижением (WASD)
     let moveStep = 0;
     if (keys["KeyW"]) moveStep = player.speed;
     if (keys["KeyS"]) moveStep = -player.speed;
@@ -95,7 +75,7 @@ function update() {
     if (keys["KeyA"]) player.angle -= player.rotSpeed;
     if (keys["KeyD"]) player.angle += player.rotSpeed;
 
-    // Расчет новой позиции с проверкой коллизий
+    // Расчет перемещения
     let newX = player.x + Math.cos(player.angle) * moveStep;
     let newY = player.y + Math.sin(player.angle) * moveStep;
 
@@ -104,10 +84,11 @@ function update() {
     let nextGridX = Math.floor(newX / TILE_SIZE);
     let nextGridY = Math.floor(newY / TILE_SIZE);
 
+    // Простая и надежная проверка коллизий перед шагом
     if (getMapCell(nextGridX, currentGridY) === 0) player.x = newX;
     if (getMapCell(currentGridX, nextGridY) === 0) player.y = newY;
 
-    // Потребность в еде и воде
+    // Система жизнедеятельности (Голод и жажда)
     player.ticks++;
     if (player.ticks % 20 === 0) {
         player.food = Math.max(0, player.food - 0.3);
@@ -117,7 +98,7 @@ function update() {
         if (player.food <= 0 || player.water <= 0) {
             player.hp = Math.max(0, player.hp - 1);
         } else if (player.hp < 100) {
-            player.hp = Math.min(100, player.hp + 0.2);
+            player.hp = Math.min(100, player.hp + 0.2); // Восстановление здоровья
         }
     }
 
@@ -129,7 +110,7 @@ function update() {
         
         let targetCell = getMapCell(targetX, targetY);
         if (targetCell === 2) {
-            map[targetY][targetX] = 0;
+            map[targetY][targetX] = 0; // Собираем ягоды и очищаем ячейку
             player.berryInv += 3;
             showStatus("Собраны лесные ягоды!");
         } else if (targetCell === 3) {
@@ -137,11 +118,11 @@ function update() {
             showStatus("Вы попили чистой воды");
         } else if (targetCell === 1) {
             player.woodInv += 1;
-            showStatus("Подобрана сухая ветка");
+            showStatus("Подобрана ветка у забора");
         }
     }
 
-    // Использование ягод (Клавиша F)
+    // Использование ягод в пищу (Клавиша F)
     if (keys["KeyF"]) {
         keys["KeyF"] = false;
         if (player.berryInv > 0) {
@@ -179,13 +160,13 @@ function updateUI() {
 }
 
 function render() {
-    // Отрисовка окружения
+    // Отрисовка плоского горизонта (Небо / Земля)
     ctx.fillStyle = "#2c3e50"; // Небо
     ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
-    ctx.fillStyle = "#112211"; // Земля
+    ctx.fillStyle = "#112211"; // Поляна
     ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
 
-    // Псевдо-3D Raycasting движок
+    // Отрисовка забора методом Raycasting
     const numRays = canvas.width;
     const halfFov = player.fov / 2;
     const startAngle = player.angle - halfFov;
@@ -200,8 +181,9 @@ function render() {
         let cos = Math.cos(rayAngle);
         let sin = Math.sin(rayAngle);
 
-        while (distance < 500) {
-            distance += 1;
+        // Луч летит вперед, пока не врежется в забор или объект
+        while (distance < 800) {
+            distance += 1.5;
             let checkX = Math.floor((player.x + cos * distance) / TILE_SIZE);
             let checkY = Math.floor((player.y + sin * distance) / TILE_SIZE);
 
@@ -210,14 +192,16 @@ function render() {
                 hitWall = cell;
                 let hitX = player.x + cos * distance;
                 let blockLeft = checkX * TILE_SIZE;
-                if (Math.abs(hitX - blockLeft) < 1 || Math.abs(hitX - (blockLeft + TILE_SIZE)) < 1) side = 1;
+                if (Math.abs(hitX - blockLeft) < 1.5 || Math.abs(hitX - (blockLeft + TILE_SIZE)) < 1.5) side = 1;
                 break;
             }
         }
 
+        // Убираем искажение камеры
         let correctedDist = distance * Math.cos(rayAngle - player.angle);
         if (correctedDist < 1) correctedDist = 1;
 
+        // Высота забора
         let wallHeight = Math.min(canvas.height, (TILE_SIZE * canvas.height) / correctedDist);
 
         if (colors[hitWall]) {
@@ -229,7 +213,7 @@ function render() {
         ctx.fillRect(i, (canvas.height - wallHeight) / 2, 1, wallHeight);
     }
 
-    // Окно проигрыша
+    // Экран смерти
     if (player.hp <= 0) {
         ctx.fillStyle = "rgba(139, 0, 0, 0.7)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -248,4 +232,5 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
+// Старт игры
 gameLoop();
