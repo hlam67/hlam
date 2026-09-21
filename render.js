@@ -103,6 +103,7 @@ function draw3Dwalls() {
 }
 
 // 5. Отрисовка кустов ягод как биллборд-спрайтов с ночной полупрозрачной вуалью
+// 5. Отрисовка кустов ягод как биллборд-спрайтов с корректным ночным затенением
 function drawSprites() {
     sprites.sort((a, b) => {
         let distA = Math.pow(a.x - player.x, 2) + Math.pow(a.y - player.y, 2);
@@ -136,12 +137,29 @@ function drawSprites() {
                         let textureX = Math.floor(((stripe - startX) / spriteSize) * berrySprite.width);
                         
                         if (berrySprite.complete && berrySprite.width > 0) {
+                            // Сохраняем чистое состояние контекста перед отрисовкой полосы куста
+                            ctx.save();
+                            
+                            // Создаем невидимую маску отсечения по размерам текущей полосы
+                            ctx.beginPath();
+                            ctx.rect(stripe, startY, 1, spriteSize);
+                            ctx.clip();
+
+                            // Рисуем сам куст
                             ctx.drawImage(berrySprite, textureX, 0, 1, berrySprite.height, stripe, startY, 1, spriteSize);
                             
-                            // Затемняем кусты ночью в тон окружения
+                            // СВЕРХВАЖНО: Меняем режим наложения! 
+                            // Теперь любой цвет будет рисоваться только ТАМ, где пиксели куста НЕ прозрачные
+                            ctx.globalCompositeOperation = "source-atop";
+                            
+                            // Накладываем ночную тень (она аккуратно затенит ветки и ягоды, оставив фон прозрачным)
                             ctx.fillStyle = `rgba(0, 5, 15, ${1 - env.ambient})`;
                             ctx.fillRect(stripe, startY, 1, spriteSize);
+                            
+                            // Восстанавливаем настройки холста для следующих объектов кадра
+                            ctx.restore();
                         } else {
+                            // Резервный маркер, если текстура ягод не найдена
                             ctx.fillStyle = "#9c27b0";
                             ctx.fillRect(stripe, startY, 1, spriteSize);
                         }
