@@ -1,6 +1,8 @@
-// Модуль отрисовки трехмерной графики кадра (Плавная смена дня и ночи)
+// ========================================================
+// МОДУЛЬ ОТРИСОВКИ ТРЕХМЕРНОЙ ГРАФИКИ КАДРА (render.js)
+// ========================================================
 
-// Функция для плавного смешивания двух цветов (в формате RGB)
+// 1. Функция для плавного смешивания двух цветов (в формате RGB)
 function blendColors(color1, color2, factor) {
     let r = Math.round(color1[0] + (color2[0] - color1[0]) * factor);
     let g = Math.round(color1[1] + (color2[1] - color1[1]) * factor);
@@ -8,34 +10,35 @@ function blendColors(color1, color2, factor) {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
-// Функция расчета текущей освещенности мира
+// 2. Функция расчета текущей освещенности мира
 function getEnvironmentColors() {
     // Переводим время в цикл синусоиды: 1 в полдень, 0 в полночь
     let illumination = (Math.sin(player.time * Math.PI * 2) + 1) / 2;
 
-    // Палитра для Неба (День: Ярко-голубое | Ночь: Темно-синее)
-    const skyDay =;  // Яркий красивый голубой (#3498db)
-    const skyNight =;   // Глубокая темная ночь
+    // Палитры цветов в формате массива [R, G, B]
+    const skyDay =;     // Яркое голубое небо
+    const skyNight =;      // Глубокая темная ночь
     
-    // Палитра для Земли (День: Сочная трава | Ночь: Черная поляна)
-    const groundDay =;
-    const groundNight =;
+    const groundDay =;    // Зеленая сочная трава
+    const groundNight =;     // Темная ночная поляна
 
     return {
         sky: blendColors(skyNight, skyDay, illumination),
         ground: blendColors(groundNight, groundDay, illumination),
-        ambient: illumination // Коэффициент темноты для стен (от 0 до 1)
+        ambient: illumination // Коэффициент темноты для стен забора (от 0 до 1)
     };
 }
 
+// 3. Отрисовка плоского фона горизонта (Динамическое небо и земля)
 function drawBackground() {
     const env = getEnvironmentColors();
-    ctx.fillStyle = env.sky; // Динамическое яркое небо
+    ctx.fillStyle = env.sky; 
     ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
-    ctx.fillStyle = env.ground; // Динамическая трава
+    ctx.fillStyle = env.ground; 
     ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
 }
 
+// 4. Алгоритм Raycasting для построения стен забора с ночным затенением
 function draw3Dwalls() {
     const numRays = canvas.width;
     const halfFov = player.fov / 2;
@@ -75,16 +78,15 @@ function draw3Dwalls() {
 
         let wallHeight = Math.min(canvas.height, (TILE_SIZE * canvas.height) / correctedDist);
 
-        // Рассчитываем цвет стен забора с учетом затемнения ночью
         if (colors[hitWall]) {
             let baseHex = side === 1 ? colors[hitWall].side : colors[hitWall].top;
             
-            // Конвертируем цвета блоков в RGB для наложения ночной тени
+            // Конвертируем цвета HEX-блоков забора в RGB для наложения динамической ночной тени
             let r = parseInt(baseHex.slice(1, 3), 16);
             let g = parseInt(baseHex.slice(3, 5), 16);
             let b = parseInt(baseHex.slice(5, 7), 16);
 
-            // Плавно глушим яркость стен ночью (эффект отсутствия факела)
+            // Плавно глушим яркость забора ночью
             r = Math.round(r * (env.ambient * 0.8 + 0.2));
             g = Math.round(g * (env.ambient * 0.8 + 0.2));
             b = Math.round(b * (env.ambient * 0.8 + 0.2));
@@ -97,6 +99,7 @@ function draw3Dwalls() {
     }
 }
 
+// 5. Отрисовка кустов ягод как биллборд-спрайтов с ночной полупрозрачной вуалью
 function drawSprites() {
     sprites.sort((a, b) => {
         let distA = Math.pow(a.x - player.x, 2) + Math.pow(a.y - player.y, 2);
@@ -132,7 +135,7 @@ function drawSprites() {
                         if (berrySprite.complete && berrySprite.width > 0) {
                             ctx.drawImage(berrySprite, textureX, 0, 1, berrySprite.height, stripe, startY, 1, spriteSize);
                             
-                            // Накладываем ночную полупрозрачную вуаль поверх кустов
+                            // Затемняем кусты ночью в тон окружения
                             ctx.fillStyle = `rgba(0, 5, 15, ${1 - env.ambient})`;
                             ctx.fillRect(stripe, startY, 1, spriteSize);
                         } else {
@@ -146,6 +149,7 @@ function drawSprites() {
     }
 }
 
+// 6. Отрисовка полупрозрачной миникарты-радара в углу экрана
 function drawMiniMap() {
     const scale = 4; 
     const mapOffset = 10; 
@@ -181,6 +185,7 @@ function drawMiniMap() {
     ctx.fillRect(startX + px * scale, startY + py * scale, scale, scale);
 }
 
+// 7. Экран завершения игры при гибели
 function drawGameOver() {
     if (player.hp <= 0) {
         ctx.fillStyle = "rgba(139, 0, 0, 0.7)";
@@ -192,6 +197,7 @@ function drawGameOver() {
     }
 }
 
+// 8. Главная функция сборки рендеринга кадра
 function renderGame() {
     drawBackground();
     draw3Dwalls();
