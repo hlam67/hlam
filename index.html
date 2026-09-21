@@ -3,60 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Survival Game</title>
-    
-    <!-- 1. Подключаем файл внешних стилей style.css -->
-    <link rel="stylesheet" href="style.css">
-    
-    <!-- 2. Загружаем библиотеку Three.js из интернета -->
-    <script src="https://cloudflare.com"></script>
+    <title>3D Pseudo-Survival Game</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #111;
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+        canvas {
+            display: block;
+            background: #000;
+        }
+        #ui {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-family: monospace;
+            font-size: 16px;
+            text-shadow: 2px 2px 2px black;
+            pointer-events: none;
+        }
+        .bar-container {
+            width: 150px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #555;
+            margin-bottom: 5px;
+            height: 12px;
+        }
+        .bar {
+            height: 100%;
+            width: 100%;
+        }
+        #instructions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+    </style>
 </head>
 <body>
 
-    <!-- Контейнер для отрисовки 3D графики движком -->
-    <div id="canvas-container"></div>
-    
-    <!-- Прицел в центре экрана -->
-    <div id="crosshair"></div>
-
-    <!-- Показатели выживания (UI) -->
+<div id="gameContainer">
+    <canvas id="gameCanvas" width="640" height="400"></canvas>
     <div id="ui">
-        <div>Здоровье:</div>
-        <div class="stat-bar"><div id="hp-fill" class="stat-fill"></div></div>
-        <div>Сытость:</div>
-        <div class="stat-bar"><div id="food-fill" class="stat-fill"></div></div>
-        <div>Жажда:</div>
-        <div class="stat-bar"><div id="water-fill" class="stat-fill"></div></div>
-        
-        <div id="inventory">
-            🎒 Инвентарь:<br>
-            • 🪵 Дерево: <span id="inv-wood">0</span><br>
-            • 🍏 Яблоки: <span id="inv-apples">0</span>
-        </div>
+        ЖИЗНЬ: <div class="bar-container"><div id="hpBar" class="bar" style="background: #ff3333;"></div></div>
+        ГОЛОД: <div class="bar-container"><div id="foodBar" class="bar" style="background: #ffcc00;"></div></div>
+        ЖАЖДА: <div class="bar-container"><div id="waterBar" class="bar" style="background: #33ccff;"></div></div>
+        <div id="score">Дней прожито: 0</div>
+        <div id="inventory" style="margin-top: 10px; color: #aaa;">Дрова: 0 | Ягоды: 0</div>
     </div>
-
-    <!-- Подсказка взаимодействия с деревьями -->
-    <div id="interaction-prompt">Нажмите [E], чтобы собрать ресурсы</div>
-
-    <!-- Главный стартовый экран (фиксация мыши) -->
-    <div id="blocker">
-        <div id="instructions">
-            <h2>3D ВЫЖИВАНИЕ В ЛЕСУ</h2>
-            <p>Кликните по экрану, чтобы начать</p>
-            <p style="font-size: 16px; color: #ccc;">
-                Управление: WASD — Движение | Мышь — Обзор<br>
-                Клавиша [E] — Собрать ресурсы / Рубить дерево
-            </p>
-        </div>
+    <div id="instructions">
+        <strong>Управление:</strong><br>
+        W, S — Вперед / Назад<br>
+        A, D — Поворот камеры<br>
+        E — Собрать ресурс (в упор)<br>
+        F — Съесть ягоды (-Голод)<br>
+        <span id="statusMsg" style="color: #00ff00; font-weight: bold;"></span>
     </div>
+</div>
 
-    <!-- Экран проигрыша -->
-    <div id="game-over">
-        <h1>Вы погибли в лесу</h1>
-        <button id="restart-btn" onclick="location.reload()">Начать заново</button>
-    </div>
+<script src="game.js"></script>
 
-    <!-- 3. Подключаем основной код игры game.js в самом конце (после загрузки интерфейса) -->
-    <script src="game.js"></script>
 </body>
 </html>
