@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Pseudo-Survival Game (Modular)</title>
+    <title>3D Pseudo-Survival Game (GitHub Pages Optimized)</title>
+    <!-- Отключаем кэширование на уровне мета-тегов браузера -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <style>
         body {
             margin: 0;
@@ -78,12 +82,27 @@
     </div>
 </div>
 
-<!-- Собираем полноценный код из мини-файлов по очереди -->
-<script src="config.js"></script>
-<script src="state.js"></script>
-<script src="logic.js"></script>
-<script src="render.js"></script>
-<script src="game.js"></script>
+<script>
+    // Динамический сборщик модулей с защитой от CDN-кэширования GitHub Pages
+    const modules = ["config.js", "state.js", "logic.js", "render.js", "game.js"];
+    const timestamp = Date.now(); // Уникальный ключ для каждого обновления страницы
+
+    function loadModulesSequentially(index) {
+        if (index >= modules.length) return; // Все файлы успешно загружены по очереди
+
+        const script = document.createElement("script");
+        // Добавляем ?t=время к каждому файлу, обнуляя сетевой кэш
+        script.src = `${modules[index]}?t=${timestamp}`; 
+        
+        // Гарантируем строгий порядок: следующий файл грузится только после полной готовности предыдущего
+        script.onload = () => loadModulesSequentially(index + 1);
+        
+        document.body.appendChild(script);
+    }
+
+    // Запускаем сборку
+    loadModulesSequentially(0);
+</script>
 
 </body>
 </html>
