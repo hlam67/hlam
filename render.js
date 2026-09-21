@@ -2,11 +2,11 @@
 // МОДУЛЬ ОТРИСОВКИ ТРЕХМЕРНОЙ ГРАФИКИ КАДРА (render.js)
 // ========================================================
 
-// 1. Функция для плавного смешивания двух цветов (в формате RGB)
-function blendColors(color1, color2, factor) {
-    let r = Math.round(color1[0] + (color2[0] - color1[0]) * factor);
-    let g = Math.round(color1[1] + (color2[1] - color1[1]) * factor);
-    let b = Math.round(color1[2] + (color2[2] - color1[2]) * factor);
+// 1. Функция для плавного смешивания двух цветов
+function blendColors(r1, g1, b1, r2, g2, b2, factor) {
+    let r = Math.round(r1 + (r2 - r1) * factor);
+    let g = Math.round(g1 + (g2 - g1) * factor);
+    let b = Math.round(b1 + (b2 - b1) * factor);
     return `rgb(${r}, ${g}, ${b})`;
 }
 
@@ -15,16 +15,19 @@ function getEnvironmentColors() {
     // Переводим время в цикл синусоиды: 1 в полдень, 0 в полночь
     let illumination = (Math.sin(player.time * Math.PI * 2) + 1) / 2;
 
-    // Палитры цветов в формате массива [R, G, B]
-    const skyDay =;     // Яркое голубое небо
-    const skyNight =;      // Глубокая темная ночь
-    
-    const groundDay =;    // Зеленая сочная трава
-    const groundNight =;     // Темная ночная поляна
+    // Цвета дневного неба (Яркий голубой)
+    let skyDayR = 52;  let skyDayG = 152; let skyDayB = 219;
+    // Цвета ночного неба (Глубокий темный)
+    let skyNightR = 5;  let skyNightG = 10;  let skyNightB = 30;
+
+    // Цвета дневной земли (Зеленая сочная трава)
+    let groundDayR = 46; let groundDayG = 204; let groundDayB = 113;
+    // Цвета ночной земли (Темная ночная поляна)
+    let groundNightR = 10; let groundNightG = 30; let groundNightB = 15;
 
     return {
-        sky: blendColors(skyNight, skyDay, illumination),
-        ground: blendColors(groundNight, groundDay, illumination),
+        sky: blendColors(skyNightR, skyNightG, skyNightB, skyDayR, skyDayG, skyDayB, illumination),
+        ground: blendColors(groundNightR, groundNightG, groundNightB, groundDayR, groundDayG, groundDayB, illumination),
         ambient: illumination // Коэффициент темноты для стен забора (от 0 до 1)
     };
 }
