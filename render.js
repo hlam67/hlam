@@ -170,40 +170,60 @@ function drawSprites() {
     }
 }
 
-// 6. Отрисовка полупрозрачной миникарты-радара в углу экрана
+// 6. Отрисовка полупрозрачной миникарты-радара в углу экрана (УВЕЛИЧЕННАЯ)
 function drawMiniMap() {
-    const scale = 4; 
-    const mapOffset = 10; 
+    // scale — размер одной ячейки карты в пикселях на экране. 
+    // Было 5, увеличили до 10 (карта станет в 2 раза крупнее по ширине и высоте!)
+    const scale = 10; 
+    const mapOffset = 25; // Слегка увеличили отступ от краев экрана
+    
+    // Пересчитываем координаты от правого верхнего угла
     const startX = canvas.width - (MAP_WIDTH * scale) - mapOffset;
     const startY = mapOffset;
 
-    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    // Рисуем рамку и полупрозрачный фон для карты
+    ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
     ctx.fillRect(startX, startY, MAP_WIDTH * scale, MAP_HEIGHT * scale);
+    
+    // Тонкая стильная рамка вокруг всей карты
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(startX, startY, MAP_WIDTH * scale, MAP_HEIGHT * scale);
 
+    // Рисуем забор и озера
     for (let y = 0; y < MAP_HEIGHT; y++) {
         for (let x = 0; x < MAP_WIDTH; x++) {
             let cell = getMapCell(x, y);
             if (cell === 1) {
-                ctx.fillStyle = "#2e5c1e"; 
+                ctx.fillStyle = "#2e5c1e"; // Цвет забора
                 ctx.fillRect(startX + x * scale, startY + y * scale, scale, scale);
             } else if (cell === 3) {
-                ctx.fillStyle = "#2196f3"; 
+                ctx.fillStyle = "#2196f3"; // Цвет воды
                 ctx.fillRect(startX + x * scale, startY + y * scale, scale, scale);
             }
         }
     }
 
+    // Рисуем кусты ягод на миникарте (теперь они крупные и заметные)
     ctx.fillStyle = "#9c27b0";
     for (let i = 0; i < sprites.length; i++) {
         let sx = Math.floor(sprites[i].x / TILE_SIZE);
         let sy = Math.floor(sprites[i].y / TILE_SIZE);
-        ctx.fillRect(startX + sx * scale, startY + sy * scale, scale, scale);
+        // Рисуем с небольшим внутренним отступом (-1 пиксель), чтобы точки выглядели аккуратно
+        ctx.fillRect(startX + sx * scale + 1, startY + sy * scale + 1, scale - 2, scale - 2);
     }
 
+    // Рисуем игрока (теперь это яркий белый квадрат с обводкой)
     let px = Math.floor(player.x / TILE_SIZE);
     let py = Math.floor(player.y / TILE_SIZE);
+    
+    // Тень под маркером игрока
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.fillRect(startX + px * scale + 2, startY + py * scale + 2, scale - 2, scale - 2);
+    
+    // Сам игрок
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(startX + px * scale, startY + py * scale, scale, scale);
+    ctx.fillRect(startX + px * scale + 1, startY + py * scale + 1, scale - 2, scale - 2);
 }
 
 // 7. Экран завершения игры при гибели
