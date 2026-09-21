@@ -9,7 +9,6 @@ function resizeCanvas() {
 }
 resizeCanvas();
 
-// Следим за изменением размеров окна и мгновенно адаптируем игру
 window.addEventListener('resize', () => {
     resizeCanvas();
 });
@@ -18,9 +17,12 @@ const MAP_WIDTH = 16;
 const MAP_HEIGHT = 16;
 const TILE_SIZE = 64;
 
-// Загрузка текстуры куста
+// ЗАГРУЗКА ДВУХ ТЕКСТУР КУСТА
 const berrySprite = new Image();
-berrySprite.src = 'berries.png';
+berrySprite.src = 'berries.png'; // Дневной (светлый) куст
+
+const berryNightSprite = new Image();
+berryNightSprite.src = 'berries_night.png'; // Ночной (темный) куст
 
 // Цвета для 3D блоков забора и воды
 const colors = {
@@ -30,4 +32,3 @@ const colors = {
 
 // Буфер глубины для корректной сортировки стен и спрайтов
 let depthBuffer = [];
-
