@@ -1,4 +1,4 @@
-// Модуль отрисовки графики кадра
+// Модуль отрисовки графики кадра (Исправленный движок спрайтов)
 
 function drawBackground() {
     ctx.fillStyle = "#2c3e50"; // Небо
@@ -55,28 +55,51 @@ function draw3Dwalls() {
 }
 
 function drawSprites() {
+    // Сортируем спрайты по дистанции (от дальних к ближним), чтобы ближние перекрывали дальние
+    sprites.sort((a, b) => {
+        let distA = Math.pow(a.x - player.x, 2) + Math.pow(a.y - player.y, 2);
+        let distB = Math.pow(b.x - player.x, 2) + Math.pow(b.y - player.y, 2);
+        return distB - distA;
+    });
+
     for (let i = 0; i < sprites.length; i++) {
+        // Вектор от игрока к спрайту
         let spriteX = sprites[i].x - player.x;
         let spriteY = sprites[i].y - player.y;
 
-        let cosPlayer = Math.cos(-player.angle);
-        let sinPlayer = Math.sin(-player.angle);
-        let rotX = spriteX * cosPlayer - spriteY * sinPlayer;
-        let rotY = spriteX * sinPlayer + spriteY * cosPlayer; 
+        // Истинная тригонометрическая трансформация Wolfenstein 3D (инвертированная матрица камеры)
+        let cosP = Math.cos(player.angle);
+        let sinP = Math.sin(player.angle);
 
-        if (rotY > 5) {
-            let spriteScreenX = Math.floor((canvas.width / 2) + (rotX / rotY) * (canvas.width / (2 * Math.tan(player.fov / 2))));
+        // rotX - позиция влево/вправо на экране, rotY - расстояние (глубина) вперед перед игроком
+        let rotX = spriteY * cosP - spriteX * sinP;
+        let rotY = spriteX * cosP + spriteY * sinP;
+
+        // Рисуем спрайт только если он действительно впереди игрока (дистанция > 0)
+        if (rotY > 2) {
+            // Расчет центральной позиции на экране с учетом FOV (угла обзора)
+            let viewDist = (canvas.width / 2) / Math.tan(player.fov / 2);
+            let spriteScreenX = Math.floor((canvas.width / 2) + (rotX / rotY) * viewDist);
+            
+            // Пропорциональное масштабирование высоты и ширины спрайта относительно расстояния (rotY)
             let spriteSize = Math.floor((TILE_SIZE * canvas.height) / rotY);
+            
             let startX = Math.floor(spriteScreenX - spriteSize / 2);
             let startY = Math.floor((canvas.height - spriteSize) / 2);
 
+            // Пополосный рендеринг спрайта слева направо
             for (let stripe = startX; stripe < startX + spriteSize; stripe++) {
                 if (stripe >= 0 && stripe < canvas.width) {
+                    // Проверяем буфер глубины: рисуем только если стена находится ДАЛЬШЕ спрайта
                     if (depthBuffer[stripe] > rotY) { 
+                        // Расчет координаты текстуры по горизонтали (X) от 0 до ширины картинки
                         let textureX = Math.floor(((stripe - startX) / spriteSize) * berrySprite.width);
+                        
                         if (berrySprite.complete && berrySprite.width > 0) {
+                            // Отрисовываем вертикальную полоску спрайта толщиной в 1 пиксель
                             ctx.drawImage(berrySprite, textureX, 0, 1, berrySprite.height, stripe, startY, 1, spriteSize);
                         } else {
+                            // Резервный фиолетовый маркер на случай отсутствия файла ягоды
                             ctx.fillStyle = "#9c27b0";
                             ctx.fillRect(stripe, startY, 1, spriteSize);
                         }
@@ -103,5 +126,6 @@ function renderGame() {
     drawBackground();
     draw3Dwalls();
     drawSprites();
+    drawMiniMap();
     drawGameOver();
 }
