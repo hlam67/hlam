@@ -1,318 +1,224 @@
-// ==========================================
-// ЧАСТЬ 1 ИЗ 2 (ВСТАВИТЬ В НАЧАЛО GAME.JS)
-// ==========================================
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-// --- Настройки игры и переменные состояния ---
-let scene, camera, renderer, clock;
-let controls = { moveForward: false, moveBackward: false, moveLeft: false, moveRight: false };
-let isLocked = false;
+// Параметры карты
+const MAP_WIDTH = 16;
+const MAP_HEIGHT = 16;
+const TILE_SIZE = 64;
 
-// Характеристики игрока
-let stats = { hp: 100, food: 100, water: 100, wood: 0, apples: 0 };
-const MOVE_SPEED = 12.0;
-let playerVelocity = new THREE.Vector3();
+// Карта: 1 - стена (деревья/скалы), 2 - куст ягод, 3 - источник воды, 0 - пусто
+let map = [,
+ ,
+ ,
+ ,
+ ,
+ ,
+ ,
+ ,
+ ,
+ ,
+ ,
+ ,
+ ,
+ ,
+ ,
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+];
 
-// Объекты окружения
-let interactableObjects = [];
-let activeInteractable = null;
+// Игрок
+const player = {
+    x: 3.5 * TILE_SIZE,
+    y: 3.5 * TILE_SIZE,
+    angle: 0,
+    fov: Math.PI / 3, // 60 градусов
+    speed: 3,
+    rotSpeed: 0.05,
+    // Параметры выживания
+    hp: 100,
+    food: 100,
+    water: 100,
+    woodInv: 0,
+    berryInv: 0,
+    days: 0,
+    ticks: 0
+};
 
-// Элементы интерфейса (DOM)
-const blocker = document.getElementById('blocker');
-const promptEl = document.getElementById('interaction-prompt');
-const hpFill = document.getElementById('hp-fill');
-const foodFill = document.getElementById('food-fill');
-const waterFill = document.getElementById('water-fill');
-const invWood = document.getElementById('inv-wood');
-const invApples = document.getElementById('inv-apples');
-const gameOverScreen = document.getElementById('game-over');
+// Отслеживание нажатия клавиш
+const keys = {};
+window.addEventListener("keydown", e => keys[e.code] = true);
+window.addEventListener("keyup", e => keys[e.code] = false);
 
-init();
-animate();
+// Цвета для псевдо-3D стен (с эффектом бокового затенения)
+const colors = {
+    1: { top: "#2e5c1e", side: "#1e3d13" }, // Лес/Стена
+    2: { top: "#9c27b0", side: "#7b1fa2" }, // Кусты ягод
+    3: { top: "#2196f3", side: "#1976d2" }  // Вода
+};
 
-function init() {
-    // 1. Создание сцены и тумана
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xaaccff);
-    scene.fog = new THREE.FogExp2(0xaaccff, 0.015);
+function update() {
+    if (player.hp <= 0) return;
 
-    // 2. Камера
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.y = 2; // Высота глаз игрока
+    // Движение вперед/назад и повороты камеры
+    let moveStep = 0;
+    if (keys["KeyW"]) moveStep = player.speed;
+    if (keys["KeyS"]) moveStep = -player.speed;
+    
+    if (keys["KeyA"]) player.angle -= player.rotSpeed;
+    if (keys["KeyD"]) player.angle += player.rotSpeed;
 
-    // 3. Рендерер
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    document.getElementById('canvas-container').appendChild(renderer.domElement);
+    // Расчет новой позиции игрока с проверкой столкновений
+    let newX = player.x + Math.cos(player.angle) * moveStep;
+    let newY = player.y + Math.sin(player.angle) * moveStep;
 
-    clock = new THREE.Clock();
+    let checkMapX = Math.floor(newX / TILE_SIZE);
+    let checkMapY = Math.floor(newY / TILE_SIZE);
 
-    // 4. Освещение
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(ambientLight);
+    if (map[Math.floor(player.y / TILE_SIZE)][checkMapX] === 0) player.x = newX;
+    if (map[checkMapY][Math.floor(player.x / TILE_SIZE)] === 0) player.y = newY;
 
-    const sunLight = new THREE.DirectionalLight(0xfffaed, 0.8);
-    sunLight.position.set(50, 100, 50);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 1024;
-    sunLight.shadow.mapSize.height = 1024;
-    scene.add(sunLight);
+    // Таймер голода, жажды и прожитых дней
+    player.ticks++;
+    if (player.ticks % 20 === 0) {
+        player.food = Math.max(0, player.food - 0.3);
+        player.water = Math.max(0, player.water - 0.5);
+        player.days += 0.001;
 
-    // 5. Земля (Поляна)
-    const floorGeo = new THREE.PlaneGeometry(200, 200);
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x557a46, roughness: 0.8 });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    scene.add(floor);
+        // Если показатели на нуле — тратится здоровье
+        if (player.food <= 0 || player.water <= 0) {
+            player.hp = Math.max(0, player.hp - 1);
+        } else if (player.hp < 100) {
+            player.hp = Math.min(100, player.hp + 0.2); // Регенерация
+        }
+    }
 
-    // 6. Генерация деревьев
-    generateForest();
+    // Сбор ресурсов при нажатии E
+    if (keys["KeyE"]) {
+        keys["KeyE"] = false; // Предотвращаем спам от зажатия кнопки
+        let targetX = Math.floor((player.x + Math.cos(player.angle) * 40) / TILE_SIZE);
+        let targetY = Math.floor((player.y + Math.sin(player.angle) * 40) / TILE_SIZE);
+        
+        let targetCell = map[targetY][targetX];
+        if (targetCell === 2) {
+            map[targetY][targetX] = 0; // убираем куст с карты
+            player.berryInv += 3;
+            showStatus("Собраны лесные ягоды!");
+        } else if (targetCell === 3) {
+            player.water = Math.min(100, player.water + 30);
+            showStatus("Вы попили чистой воды");
+        } else if (targetCell === 1) {
+            player.woodInv += 1;
+            showStatus("Подобрана сухая ветка");
+        }
+    }
 
-    // 7. Обработчики управления мышью (Pointer Lock API)
-    blocker.addEventListener('click', () => {
-        blocker.requestPointerLock();
-    });
-
-    document.addEventListener('pointerlockchange', () => {
-        if (document.pointerLockElement === blocker) {
-            blocker.style.display = 'none';
-            isLocked = true;
+    // Использование ягод для еды при нажатии F
+    if (keys["KeyF"]) {
+        keys["KeyF"] = false;
+        if (player.berryInv > 0) {
+            player.berryInv--;
+            player.food = Math.min(100, player.food + 20);
+            showStatus("Вы съели ягоды");
         } else {
-            blocker.style.display = 'flex';
-            isLocked = false;
+            showStatus("Нет ягод для еды!");
         }
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (!isLocked) return;
-        // Поворот камеры мышью
-        camera.rotation.y -= e.movementX * 0.0025;
-        camera.rotation.x -= e.movementY * 0.0025;
-        // Ограничение наклона вверх/вниз
-        camera.rotation.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, camera.rotation.x));
-    });
-
-    // Настройка вращения камеры
-    camera.rotation.order = "YZX";
-
-    // 8. Обработчики клавиатуры
-    document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('keyup', onKeyUp);
-
-    // 9. Жизненный цикл выживания (потеря сил)
-    setInterval(survivalTick, 2000);
-
-    window.addEventListener('resize', onWindowResize);
-}
-
-// Генерация леса со случайными деревьями
-function generateForest() {
-    for (let i = 0; i < 40; i++) {
-        const x = (Math.random() - 0.5) * 150;
-        const z = (Math.random() - 0.5) * 150;
-
-        if (Math.sqrt(x*x + z*z) < 10) continue;
-
-        const isAppleTree = Math.random() > 0.6;
-        const tree = createTree(x, z, isAppleTree);
-        scene.add(tree);
-        interactableObjects.push(tree);
-    }
-}
-// ==========================================
-// ЧАСТЬ 2 ИЗ 2 (ВСТАВИТЬ СРАЗУ ПОСЛЕ ЧАСТИ 1)
-// ==========================================
-
-// Создание 3D модели дерева
-function createTree(x, z, isAppleTree) {
-    const treeGroup = new THREE.Group();
-    treeGroup.position.set(x, 0, z);
-
-    // Ствол
-    const trunkGeo = new THREE.CylinderGeometry(0.3, 0.4, 3, 8);
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
-    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-    trunk.position.y = 1.5;
-    trunk.castShadow = true;
-    treeGroup.add(trunk);
-
-    // Листва
-    const leavesGeo = new THREE.SphereGeometry(1.5, 8, 8);
-    const leavesMat = new THREE.MeshStandardMaterial({ color: isAppleTree ? 0x2e5a1c : 0x3a5f0b, roughness: 0.6 });
-    const leaves = new THREE.Mesh(leavesGeo, leavesMat);
-    leaves.position.y = 3.5;
-    leaves.castShadow = true;
-    treeGroup.add(leaves);
-
-    // Если это яблоня, добавим красные сферы (яблоки)
-    if (isAppleTree) {
-        for (let i = 0; i < 4; i++) {
-            const appleGeo = new THREE.SphereGeometry(0.15, 6, 6);
-            const appleMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-            apple.position.set(
-                (Math.random() - 0.5) * 1.5,
-                3.0 + Math.random(),
-                (Math.random() - 0.5) * 1.5
-            );
-            treeGroup.add(apple);
-        }
-        treeGroup.userData = { type: 'apple_tree', resources: 3 };
-    } else {
-        treeGroup.userData = { type: 'tree', resources: 4 };
-    }
-
-    return treeGroup;
-}
-
-function onKeyDown(e) {
-    switch (e.code) {
-        case 'KeyW': controls.moveForward = true; break;
-        case 'KeyS': controls.moveBackward = true; break;
-        case 'KeyA': controls.moveLeft = true; break;
-        case 'KeyD': controls.moveRight = true; break;
-        case 'KeyE': interact(); break;
-    }
-}
-
-function onKeyUp(e) {
-    switch (e.code) {
-        case 'KeyW': controls.moveForward = false; break;
-        case 'KeyS': controls.moveBackward = false; break;
-        case 'KeyA': controls.moveLeft = false; break;
-        case 'KeyD': controls.moveRight = false; break;
-    }
-}
-
-// Логика взаимодействия с объектами (сбор ресурсов)
-function interact() {
-    if (!activeInteractable || activeInteractable.userData.resources <= 0) return;
-
-    const type = activeInteractable.userData.type;
-    activeInteractable.userData.resources--;
-
-    if (type === 'apple_tree') {
-        stats.apples += 2;
-        stats.wood += 1;
-    } else {
-        stats.wood += 2;
-    }
-
-    // Эффект разрушения / сборки ресурса
-    if (activeInteractable.userData.resources <= 0) {
-        let target = activeInteractable;
-        let interval = setInterval(() => {
-            target.position.y -= 0.1;
-            if (target.position.y < -5) {
-                clearInterval(interval);
-                scene.remove(target);
-            }
-        }, 30);
-        promptEl.style.display = 'none';
-        activeInteractable = null;
     }
 
     updateUI();
 }
 
-// Каждую секунду падают показатели голода и жажды
-function survivalTick() {
-    if (!isLocked || stats.hp <= 0) return;
-
-    stats.food = Math.max(0, stats.food - 1.5);
-    stats.water = Math.max(0, stats.water - 2);
-
-    if (stats.food === 0 || stats.water === 0) {
-        stats.hp = Math.max(0, stats.hp - 5);
-    } else {
-        // Автоматическое поедание яблок при голоде
-        if (stats.food < 40 && stats.apples > 0) {
-            stats.apples--;
-            stats.food = Math.min(100, stats.food + 20);
-            stats.water = Math.min(100, stats.water + 5);
-        }
+function showStatus(text) {
+    const el = document.getElementById("statusMsg");
+    if (el) {
+        el.innerText = text;
+        setTimeout(() => { if(el.innerText === text) el.innerText = ""; }, 2000);
     }
-
-    if (stats.hp <= 0) {
-        document.exitPointerLock();
-        gameOverScreen.style.display = 'flex';
-    }
-
-    updateUI();
 }
 
 function updateUI() {
-    hpFill.style.width = stats.hp + '%';
-    foodFill.style.width = stats.food + '%';
-    waterFill.style.width = stats.water + '%';
-    invWood.innerText = stats.wood;
-    invApples.innerText = stats.apples;
+    document.getElementById("hpBar").style.width = player.hp + "%";
+    document.getElementById("foodBar").style.width = player.food + "%";
+    document.getElementById("waterBar").style.width = player.water + "%";
+    document.getElementById("score").innerText = "Дней прожито: " + Math.floor(player.days);
+    document.getElementById("inventory").innerText = `Дрова: ${player.woodInv} | Ягоды: ${player.berryInv}`;
 }
 
-function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}
+function render() {
+    // Отрисовка неба и земли
+    ctx.fillStyle = "#2c3e50"; // Верхняя половина (небо)
+    ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+    ctx.fillStyle = "#112211"; // Нижня половина (земля)
+    ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
 
-// Основной игровой цикл отрисовки и механики движения
-function animate() {
-    requestAnimationFrame(animate);
+    // Псевдо-3D Рендеринг (Алгоритм Raycasting)
+    const numRays = canvas.width;
+    const halfFov = player.fov / 2;
+    const startAngle = player.angle - halfFov;
+    const angleStep = player.fov / numRays;
 
-    if (isLocked && stats.hp > 0) {
-        const delta = clock.getDelta();
-        
-        let forward = new THREE.Vector3();
-        camera.getWorldDirection(forward);
-        forward.y = 0; 
-        forward.normalize();
+    for (let i = 0; i < numRays; i++) {
+        let rayAngle = startAngle + i * angleStep;
+        let distance = 0;
+        let hitWall = 0;
+        let side = 0;
 
-        let right = new THREE.Vector3();
-        right.crossVectors(forward, camera.up).negate().normalize(); 
+        let cos = Math.cos(rayAngle);
+        let sin = Math.sin(rayAngle);
 
-        let moveDirection = new THREE.Vector3();
+        while (distance < 500) {
+            distance += 1;
+            let checkX = Math.floor((player.x + cos * distance) / TILE_SIZE);
+            let checkY = Math.floor((player.y + sin * distance) / TILE_SIZE);
 
-        if (controls.moveForward) moveDirection.add(forward);
-        if (controls.moveBackward) moveDirection.sub(forward);
-        if (controls.moveRight) moveDirection.add(right);
-        if (controls.moveLeft) moveDirection.sub(right);
+            if (checkX < 0 || checkX >= MAP_WIDTH || checkY < 0 || checkY >= MAP_HEIGHT) {
+                hitWall = 1;
+                distance = 500;
+                break;
+            }
 
-        moveDirection.normalize(); 
-
-        playerVelocity.x = moveDirection.x * MOVE_SPEED * delta;
-        playerVelocity.z = moveDirection.z * MOVE_SPEED * delta;
-
-        camera.position.x += playerVelocity.x;
-        camera.position.z += playerVelocity.z;
-
-        camera.position.x = Math.max(-95, Math.min(95, camera.position.x));
-        camera.position.z = Math.max(-95, Math.min(95, camera.position.z));
-
-        // Проверка дистанции до деревьев
-        let closeObject = null;
-        for (let obj of interactableObjects) {
-            if (obj.userData.resources <= 0) continue;
-            
-            let dist = camera.position.distanceTo(obj.position);
-            if (dist < 3.5) { 
-                closeObject = obj;
+            if (map[checkY][checkX] > 0) {
+                hitWall = map[checkY][checkX];
+                let hitX = player.x + cos * distance;
+                let blockLeft = checkX * TILE_SIZE;
+                if (Math.abs(hitX - blockLeft) < 1 || Math.abs(hitX - (blockLeft + TILE_SIZE)) < 1) side = 1;
                 break;
             }
         }
 
-        if (closeObject) {
-            activeInteractable = closeObject;
-            if (closeObject.userData.type === 'apple_tree') {
-                promptEl.innerText = "Нажмите [E], чтобы собрать яблоки и ветки";
-            } else {
-                promptEl.innerText = "Нажмите [E], чтобы срубить дерево";
-            }
-            promptEl.style.display = 'block';
+        // Исправление эффекта рыбьего глаза (Lens distortion)
+        let correctedDist = distance * Math.cos(rayAngle - player.angle);
+        if (correctedDist < 1) correctedDist = 1;
+
+        // Расчет высоты стены
+        let wallHeight = Math.min(canvas.height, (TILE_SIZE * canvas.height) / correctedDist);
+
+        // Отрисовка вертикальной полосы стены
+        if (colors[hitWall]) {
+            ctx.fillStyle = side === 1 ? colors[hitWall].side : colors[hitWall].top;
         } else {
-            activeInteractable = null;
-            promptEl.style.display = 'none';
+            ctx.fillStyle = "#333";
         }
+        
+        ctx.fillRect(i, (canvas.height - wallHeight) / 2, 1, wallHeight);
     }
 
-    renderer.render(scene, camera);
+    // Проверка экрана смерти
+    if (player.hp <= 0) {
+        ctx.fillStyle = "rgba(139, 0, 0, 0.7)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.font = "30px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("ВЫ ПОГИБЛИ", canvas.width / 2, canvas.height / 2);
+        ctx.font = "18px sans-serif";
+        ctx.fillText(`Вы выживали ${Math.floor(player.days)} дн.`, canvas.width / 2, canvas.height / 2 + 40);
+    }
 }
+
+function gameLoop() {
+    update();
+    render();
+    requestAnimationFrame(gameLoop);
+}
+
+// Запуск игрового цикла
+gameLoop();
