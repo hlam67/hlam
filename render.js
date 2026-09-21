@@ -1,4 +1,4 @@
-// Модуль отрисовки графики кадра
+// Модуль отрисовки трехмерной графики кадра
 
 function drawBackground() {
     ctx.fillStyle = "#2c3e50"; // Небо
@@ -55,7 +55,6 @@ function draw3Dwalls() {
 }
 
 function drawSprites() {
-    // Сортируем спрайты по дистанции от дальних к ближним
     sprites.sort((a, b) => {
         let distA = Math.pow(a.x - player.x, 2) + Math.pow(a.y - player.y, 2);
         let distB = Math.pow(b.x - player.x, 2) + Math.pow(b.y - player.y, 2);
@@ -98,7 +97,6 @@ function drawSprites() {
     }
 }
 
-// Описание функции мини-карты (теперь она точно на месте)
 function drawMiniMap() {
     const scale = 4; 
     const mapOffset = 10; 
@@ -145,11 +143,10 @@ function drawGameOver() {
     }
 }
 
-// Главная функция отрисовки для сборщика
 function renderGame() {
     drawBackground();
     draw3Dwalls();
     drawSprites();
-    drawMiniMap(); // Теперь функция существует и вызовется без ошибок!
+    drawMiniMap();
     drawGameOver();
 }
