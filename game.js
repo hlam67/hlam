@@ -83,7 +83,7 @@ function update() {
         player.water = Math.max(0, player.water - 0.5);
         player.days += 0.001;
 
-        // Если показатели на нуле — тратится здоровье
+        // Если показатели на нулю — тратится здоровье
         if (player.food <= 0 || player.water <= 0) {
             player.hp = Math.max(0, player.hp - 1);
         } else if (player.hp < 100) {
@@ -97,17 +97,19 @@ function update() {
         let targetX = Math.floor((player.x + Math.cos(player.angle) * 40) / TILE_SIZE);
         let targetY = Math.floor((player.y + Math.sin(player.angle) * 40) / TILE_SIZE);
         
-        let targetCell = map[targetY][targetX];
-        if (targetCell === 2) {
-            map[targetY][targetX] = 0; // убираем куст с карты
-            player.berryInv += 3;
-            showStatus("Собраны лесные ягоды!");
-        } else if (targetCell === 3) {
-            player.water = Math.min(100, player.water + 30);
-            showStatus("Вы попили чистой воды");
-        } else if (targetCell === 1) {
-            player.woodInv += 1;
-            showStatus("Подобрана сухая ветка");
+        if (targetX >= 0 && targetX < MAP_WIDTH && targetY >= 0 && targetY < MAP_HEIGHT) {
+            let targetCell = map[targetY][targetX];
+            if (targetCell === 2) {
+                map[targetY][targetX] = 0; // убираем куст с карты
+                player.berryInv += 3;
+                showStatus("Собраны лесные ягоды!");
+            } else if (targetCell === 3) {
+                player.water = Math.min(100, player.water + 30);
+                showStatus("Вы попили чистой воды");
+            } else if (targetCell === 1) {
+                player.woodInv += 1;
+                showStatus("Подобрана сухая ветка");
+            }
         }
     }
 
