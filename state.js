@@ -12,7 +12,8 @@ const player = {
     woodInv: 0,
     berryInv: 0,
     days: 0,
-    ticks: 0
+    ticks: 0,
+    time: 0
 };
 
 // Игровая карта (генерируется пустой с забором по краям)
