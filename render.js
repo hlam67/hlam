@@ -1,4 +1,4 @@
-// Модуль отрисовки графики кадра (Исправленный движок спрайтов)
+// Модуль отрисовки графики кадра
 
 function drawBackground() {
     ctx.fillStyle = "#2c3e50"; // Небо
@@ -55,7 +55,7 @@ function draw3Dwalls() {
 }
 
 function drawSprites() {
-    // Сортируем спрайты по дистанции (от дальних к ближним), чтобы ближние перекрывали дальние
+    // Сортируем спрайты по дистанции от дальних к ближним
     sprites.sort((a, b) => {
         let distA = Math.pow(a.x - player.x, 2) + Math.pow(a.y - player.y, 2);
         let distB = Math.pow(b.x - player.x, 2) + Math.pow(b.y - player.y, 2);
@@ -63,43 +63,31 @@ function drawSprites() {
     });
 
     for (let i = 0; i < sprites.length; i++) {
-        // Вектор от игрока к спрайту
         let spriteX = sprites[i].x - player.x;
         let spriteY = sprites[i].y - player.y;
 
-        // Истинная тригонометрическая трансформация Wolfenstein 3D (инвертированная матрица камеры)
         let cosP = Math.cos(player.angle);
         let sinP = Math.sin(player.angle);
 
-        // rotX - позиция влево/вправо на экране, rotY - расстояние (глубина) вперед перед игроком
         let rotX = spriteY * cosP - spriteX * sinP;
         let rotY = spriteX * cosP + spriteY * sinP;
 
-        // Рисуем спрайт только если он действительно впереди игрока (дистанция > 0)
         if (rotY > 2) {
-            // Расчет центральной позиции на экране с учетом FOV (угла обзора)
             let viewDist = (canvas.width / 2) / Math.tan(player.fov / 2);
             let spriteScreenX = Math.floor((canvas.width / 2) + (rotX / rotY) * viewDist);
-            
-            // Пропорциональное масштабирование высоты и ширины спрайта относительно расстояния (rotY)
             let spriteSize = Math.floor((TILE_SIZE * canvas.height) / rotY);
             
             let startX = Math.floor(spriteScreenX - spriteSize / 2);
             let startY = Math.floor((canvas.height - spriteSize) / 2);
 
-            // Пополосный рендеринг спрайта слева направо
             for (let stripe = startX; stripe < startX + spriteSize; stripe++) {
                 if (stripe >= 0 && stripe < canvas.width) {
-                    // Проверяем буфер глубины: рисуем только если стена находится ДАЛЬШЕ спрайта
                     if (depthBuffer[stripe] > rotY) { 
-                        // Расчет координаты текстуры по горизонтали (X) от 0 до ширины картинки
                         let textureX = Math.floor(((stripe - startX) / spriteSize) * berrySprite.width);
                         
                         if (berrySprite.complete && berrySprite.width > 0) {
-                            // Отрисовываем вертикальную полоску спрайта толщиной в 1 пиксель
                             ctx.drawImage(berrySprite, textureX, 0, 1, berrySprite.height, stripe, startY, 1, spriteSize);
                         } else {
-                            // Резервный фиолетовый маркер на случай отсутствия файла ягоды
                             ctx.fillStyle = "#9c27b0";
                             ctx.fillRect(stripe, startY, 1, spriteSize);
                         }
@@ -108,6 +96,42 @@ function drawSprites() {
             }
         }
     }
+}
+
+// Описание функции мини-карты (теперь она точно на месте)
+function drawMiniMap() {
+    const scale = 4; 
+    const mapOffset = 10; 
+    const startX = canvas.width - (MAP_WIDTH * scale) - mapOffset;
+    const startY = mapOffset;
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    ctx.fillRect(startX, startY, MAP_WIDTH * scale, MAP_HEIGHT * scale);
+
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+        for (let x = 0; x < MAP_WIDTH; x++) {
+            let cell = getMapCell(x, y);
+            if (cell === 1) {
+                ctx.fillStyle = "#2e5c1e"; 
+                ctx.fillRect(startX + x * scale, startY + y * scale, scale, scale);
+            } else if (cell === 3) {
+                ctx.fillStyle = "#2196f3"; 
+                ctx.fillRect(startX + x * scale, startY + y * scale, scale, scale);
+            }
+        }
+    }
+
+    ctx.fillStyle = "#9c27b0";
+    for (let i = 0; i < sprites.length; i++) {
+        let sx = Math.floor(sprites[i].x / TILE_SIZE);
+        let sy = Math.floor(sprites[i].y / TILE_SIZE);
+        ctx.fillRect(startX + sx * scale, startY + sy * scale, scale, scale);
+    }
+
+    let px = Math.floor(player.x / TILE_SIZE);
+    let py = Math.floor(player.y / TILE_SIZE);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(startX + px * scale, startY + py * scale, scale, scale);
 }
 
 function drawGameOver() {
@@ -126,6 +150,6 @@ function renderGame() {
     drawBackground();
     draw3Dwalls();
     drawSprites();
-    drawMiniMap();
+    drawMiniMap(); // Теперь функция существует и вызовется без ошибок!
     drawGameOver();
 }
