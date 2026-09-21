@@ -2,75 +2,85 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Pseudo-Survival Game (GitHub Pages Optimized)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Pseudo-Survival Game (Fullscreen)</title>
     <!-- Отключаем кэширование на уровне мета-тегов браузера -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <style>
-        body {
+        * {
+            box-sizing: border-box;
+        }
+        body, html {
             margin: 0;
-            background-color: #111;
-            color: white;
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
+            padding: 0;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
+            background-color: #000;
+            font-family: sans-serif;
         }
         #gameContainer {
             position: relative;
-            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            width: 100%;
+            height: 100%;
         }
         canvas {
             display: block;
-            background: #000;
+            width: 100%;
+            height: 100%;
         }
         #ui {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
+            bottom: 20px;
+            left: 20px;
             font-family: monospace;
-            font-size: 16px;
-            text-shadow: 2px 2px 2px black;
+            font-size: 18px;
+            text-shadow: 2px 2px 3px black;
             pointer-events: none;
+            color: white;
+            z-index: 10;
         }
         .bar-container {
-            width: 150px;
-            background: rgba(0,0,0,0.5);
-            border: 1px solid #555;
-            margin-bottom: 5px;
-            height: 12px;
+            width: 180px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid #666;
+            margin-bottom: 8px;
+            height: 14px;
+            border-radius: 3px;
+            overflow: hidden;
         }
         .bar {
             height: 100%;
             width: 100%;
+            transition: width 0.1s ease;
         }
         #instructions {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 20px;
+            left: 20px;
             background: rgba(0,0,0,0.7);
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
             pointer-events: none;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 10;
         }
     </style>
 </head>
 <body>
 
 <div id="gameContainer">
-    <canvas id="gameCanvas" width="640" height="400"></canvas>
+    <canvas id="gameCanvas"></canvas>
     <div id="ui">
         ЖИЗНЬ: <div class="bar-container"><div id="hpBar" class="bar" style="background: #ff3333;"></div></div>
         ГОЛОД: <div class="bar-container"><div id="foodBar" class="bar" style="background: #ffcc00;"></div></div>
         ЖАЖДА: <div class="bar-container"><div id="waterBar" class="bar" style="background: #33ccff;"></div></div>
-        <div id="score">Дней прожито: 0</div>
-        <div id="inventory" style="margin-top: 10px; color: #aaa;">Дрова: 0 | Ягоды: 0</div>
+        <div id="score" style="font-weight: bold; margin-top: 5px;">Дней прожито: 0</div>
+        <div id="inventory" style="margin-top: 10px; color: #ccc; font-weight: bold;">Дрова: 0 | Ягоды: 0</div>
     </div>
     <div id="instructions">
         <strong>Управление:</strong><br>
@@ -78,31 +88,16 @@
         A, D — Поворот камеры<br>
         E — Собрать ресурс (в упор)<br>
         F — Съесть ягоды (-Голод)<br>
-        <span id="statusMsg" style="color: #00ff00; font-weight: bold;"></span>
+        <span id="statusMsg" style="color: #00ff00; font-weight: bold; display: block; margin-top: 5px;"></span>
     </div>
 </div>
 
-<script>
-    // Динамический сборщик модулей с защитой от CDN-кэширования GitHub Pages
-    const modules = ["config.js", "state.js", "logic.js", "render.js", "game.js"];
-    const timestamp = Date.now(); // Уникальный ключ для каждого обновления страницы
-
-    function loadModulesSequentially(index) {
-        if (index >= modules.length) return; // Все файлы успешно загружены по очереди
-
-        const script = document.createElement("script");
-        // Добавляем ?t=время к каждому файлу, обнуляя сетевой кэш
-        script.src = `${modules[index]}?t=${timestamp}`; 
-        
-        // Гарантируем строгий порядок: следующий файл грузится только после полной готовности предыдущего
-        script.onload = () => loadModulesSequentially(index + 1);
-        
-        document.body.appendChild(script);
-    }
-
-    // Запускаем сборку
-    loadModulesSequentially(0);
-</script>
+<!-- Модульная сборка с форсированным обновлением кэша браузера -->
+<script src="config.js?v=4"></script>
+<script src="state.js?v=4"></script>
+<script src="logic.js?v=4"></script>
+<script src="render.js?v=4"></script>
+<script src="game.js?v=4"></script>
 
 </body>
 </html>
